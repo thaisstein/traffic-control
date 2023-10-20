@@ -1,67 +1,33 @@
 from fastapi import FastAPI, WebSocket
-from fastapi.responses import HTMLResponse
-import paho.mqtt.client as mqtt
-from fastapi import FastAPI
-from fastapi import FastMQTT, MQTTConfig
-
-app = FastAPI()
-mqtt_subscriber = mqtt.Client()
-
-with open("style.html", "r") as file:
-    html = file.read()
-
-async def func():
-    mqtt.publish("/mqtt", "Hello from Fastapi") #publishing mqtt topic
-
-    return {"result": True,"message":"Published" }
+import pika
+import asyncio
 
 app = FastAPI()
 
-mqtt_config = MQTTConfig()
+# WebSocket connection management as per your existing code
+connected_websockets = []
 
-mqtt = FastMQTT(
-    config=mqtt_config
-)
+def send_update_to_clients(message):
+    for websocket in connected_websockets:
+        websocket.send_text(message)
 
-mqtt.init_app(app)
+def rabbitmq_callback(ch, method, properties, body):
+    message = body.decode()
+    send_update_to_clients(message)
 
+def start_rabbitmq_consumer():
+    connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+    channel = connection.channel()
+    channel.exchange_declare(exchange='logs', exchange_type='fanout')
+    result = channel.queue_declare(queue='', exclusive=True)
+    queue_name = result.method.queue
+    channel.queue_bind(exchange='logs', queue=queue_name)
+    channel.basic_consume(queue=queue_name, on_message_callback=rabbitmq_callback, auto_ack=True)
+    channel.start_consuming()
 
-@mqtt.on_connect()
-def connect(client, flags, rc, properties):
-    mqtt.client.subscribe("/mqtt") #subscribing mqtt topic
-    print("Connected: ", client, flags, rc, properties)
+async def send_periodic_haha_messages():
+    while True:
+        await asyncio.sleep(5)  # Send a message every 5 seconds
+        message = "HAHA"
+        send_update_to_clients(message)
 
-@mqtt.on_message()
-async def message(client, topic, payload, qos, properties):
-    print("Received message: ",topic, payload.decode(), qos, properties)
-
-@mqtt.subscribe("my/mqtt/topic/#")
-async def message_to_topic(client, topic, payload, qos, properties):
-    print("Received message to specific topic: ", topic, payload.decode(), qos, properties)
-
-@mqtt.subscribe("my/mqtt/topic/#", qos=2)
-async def message_to_topic_with_high_qos(client, topic, payload, qos, properties):
-    print("Received message to specific topic and QoS=2: ", topic, payload.decode(), qos, properties)
-
-@mqtt.on_disconnect()
-def disconnect(client, packet, exc=None):
-    print("Disconnected")
-
-@mqtt.on_subscribe()
-def subscribe(client, mid, qos, properties):
-    print("subscribed", client, mid, qos, properties)
-
-@mqtt.on_connect()
-def connect(client, flags, rc, properties):
-    mqtt.client.subscribe("/mqtt") #subscribing mqtt topic
-    print("Connected: ", client, flags, rc, properties)
-
-mqtt_config = MQTTConfig(host = "mqtt.mosquito.org",
-    port= 1883,
-    keepalive = 60,
-    username="username",
-    password="strong_password")
-
-
-mqtt = FastMQTT(
-    config=mqtt_config)
