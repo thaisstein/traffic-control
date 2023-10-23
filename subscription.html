@@ -28,13 +28,48 @@
             font-size: 24px;
             margin: 20px;
         }
+
+        #message-container {
+            max-height: 300px; /* Set the maximum height for scrolling */
+            overflow: auto; /* Enable vertical scrolling */
+        }
     </style>
 </head>
 <body>
     <h1>Traffic Control</h1>
     <div class="message">You just subscribed to Traffic Information</div>
-    <form action="/subscribe" method="post">
-        <button type="submit">Subscribe to RabbitMQ</button>
-    </form>
+
+    <div class="message" id="message-container">
+        <ul id="messages"></ul>
+    </div>
+
+    <script>
+        // Function to initiate the WebSocket connection
+        var ws = new WebSocket("ws://localhost:8000/ws");
+        var messagesContainer = document.getElementById("messages");
+        
+        ws.onmessage = function(event) {
+            // Clear the old messages
+            messagesContainer.innerHTML = "";
+
+            // Create a new message
+            var message = document.createElement("li");
+            message.textContent = event.data;
+            messagesContainer.appendChild(message);
+
+            // Scroll to the bottom to show the latest message
+            document.getElementById("message-container").scrollTop = document.getElementById("message-container").scrollHeight;
+        };
+
+        ws.onclose = function(event) {
+            if (event.code === 1000) {
+                // The WebSocket connection was closed gracefully (OK).
+                console.log("WebSocket connection closed gracefully.");
+            } else {
+                // Handle other closure codes.
+                console.error("WebSocket connection closed with code: " + event.code);
+            }
+        };
+    </script>
 </body>
 </html>

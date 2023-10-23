@@ -1,19 +1,36 @@
 #!/usr/bin/env python
 import pika
 from pika.exchange_type import ExchangeType
-import sys
+import sys, asyncio, websockets
+import random
 import time
 
-connection_parameters = pika.ConnectionParameters('localhost')
+rabbitmq_host = 'localhost'
+exchange_name = 'pubsub'
 
-connection = pika.BlockingConnection(connection_parameters)
+while True:
+    # Check your variable in real-time
+    my_variable = random.randint(0, 5)
 
-channel = connection.channel()
+    if my_variable == 1:
+        message = "Attention! Busy traffic on route close to you!"
+        connection = pika.BlockingConnection(pika.ConnectionParameters(host=rabbitmq_host))
+        channel = connection.channel()
+        channel.exchange_declare(exchange=exchange_name, exchange_type='fanout')
+        channel.basic_publish(exchange=exchange_name, routing_key='', body=message)
+        print(f"Sent: {message}")
+        connection.close()
 
-channel.exchange_declare(exchange='pubsub', exchange_type=ExchangeType.fanout)
+    if my_variable == 4:
+        message = "Careful! Accident close to you!"
+        connection = pika.BlockingConnection(pika.ConnectionParameters(host=rabbitmq_host))
+        channel = connection.channel()
+        channel.exchange_declare(exchange=exchange_name, exchange_type='fanout')
+        channel.basic_publish(exchange=exchange_name, routing_key='', body=message)
+        print(f"Sent: {message}")
+        connection.close()
 
-message = "I want to broadcast this message"
+    # Adjust the checking interval
+    time.sleep(1)  
 
-channel.basic_publish(exchange='pubsub', routing_key='', body=message)
-print("sent message: {message}")
-connection.close
+
