@@ -48,6 +48,6 @@ This system relies on five CSV databases, including real-time traffic data and f
 
 - **Message Brokers**: Further research and development of message brokers to enhance message handling and distribution efficiency.
 
-- ** Machine Learning Improvements**: Continuously refining machine learning models to improve the accuracy of traffic predictions and adapt to changing conditions.
+- **Machine Learning Improvements**: Continuously refining machine learning models to improve the accuracy of traffic predictions and adapt to changing conditions.
 
 - **Real-time Data Sources**: Integrating additional real-time data sources to enhance the accuracy and timeliness of traffic information.
