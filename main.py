@@ -3,16 +3,16 @@ from fastapi.responses import HTMLResponse
 from fastapi.responses import FileResponse
 from fastapi import FastAPI, Depends, HTTPException, Form
 import asyncio
-from websocket import WebSocketState
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer
 import subprocess
-import threading
+import threading, websockets
 from typing import Set
+import json
 
 from fastapi.middleware.cors import CORSMiddleware
 
-from firstconsumer import start_consumer
+from firstconsumer import start_first_consumer
 import httpx
 from websocket import (
     send_update_to_clients,
@@ -21,7 +21,7 @@ from websocket import (
 )
 
 def run_rabbitmq_consumer():
-    start_consumer()
+    start_first_consumer()
 
 app = FastAPI()
 
@@ -33,39 +33,47 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-websocket_clients: Set[WebSocket] = set()
-# Store connected WebSocket clients
 websocket_clients = set()
+is_connected = False
 
+import json
+
+# Store WebSocket connections in a set
+connected_websockets = set()
+
+# Define a WebSocket endpoint
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    websocket_clients.add(websocket)
-
+    connected_websockets.add(websocket)
+    
     try:
         while True:
             message = await websocket.receive_text()
-            # You can process the message here if needed
-            # Ensure the WebSocket connection is open before sending
-            if websocket.client_state == WebSocketState.CONNECTED:
-                await websocket.send_text("Received your message: " + message)
+            # Process the received message here or send it to RabbitMQ if needed
+            print(f"RECEIVED message: {message}")
     except WebSocketDisconnect:
-        websocket_clients.remove(websocket)
+        connected_websockets.remove(websocket)
+
 
 @app.get("/", response_class=HTMLResponse)
 def get_subscribe_page(request: Request):
-    # HTML form to subscribe
     return FileResponse("firstpage.html")
 
+# Serve the page
+@app.get("/subscribe", response_class=HTMLResponse)
+def get_subscribe_page(request: Request):
+    return FileResponse("subscription.html")
 
 @app.post("/subscribe")
 async def subscribe_to_rabbitmq():
 
     # Run emit_log.py to subscribe to RabbitMQ
     try:
+        #asyncio.create_task(run_rabbitmq_consumer())
         rabbitmq_thread = threading.Thread(target=run_rabbitmq_consumer)
         rabbitmq_thread.start()
-       # _process = subprocess.Popen(["python3", "firstconsumer.py"])
+        #_process = subprocess.Popen(["python3", "firstconsumer.py"])
         return FileResponse("subscription.html")
 
     #acho q aqui que vai as condicoes da BD
@@ -76,5 +84,6 @@ async def subscribe_to_rabbitmq():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+    
 
 
